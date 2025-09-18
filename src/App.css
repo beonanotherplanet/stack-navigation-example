@@ -1,0 +1,96 @@
+.page {
+  display: grid;
+  grid-template-columns: 280px 1fr 420px;
+  gap: 16px;
+  height: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+}
+.panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  overflow: auto;
+  background: #fff;
+}
+.panel h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #374151;
+}
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  cursor: pointer;
+}
+button:hover {
+  background: #f3f4f6;
+}
+.kv {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.input,
+select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  box-sizing: border-box;
+}
+.phone-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.phone {
+  width: 360px;
+  height: 640px;
+  border: 2px solid #dbeafe;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+  overflow: hidden;
+  position: relative;
+}
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+.card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+.title {
+  font-weight: 700;
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+}
