@@ -24,6 +24,7 @@ export default tseslint.config([
         files: ["src/stackflow/**"],
         rules: {
           "@typescript-eslint/no-explicit-any": "off",
+          "@typescript-eslint/no-unused-vars": "warn",
         },
       },
     ],
