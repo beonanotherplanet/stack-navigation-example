@@ -1,19 +1,28 @@
+html,
+body {
+  min-height: 100svh;
+  padding: 0;
+  margin: 0;
+}
+
 .page {
   display: grid;
-  grid-template-columns: 280px 1fr 420px;
+  grid-template-columns: 4fr 1fr 500px;
   gap: 16px;
-  height: 100%;
-  padding: 16px;
+  height: 100svh;
+  padding: 0;
   box-sizing: border-box;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
 }
 .panel {
-  border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 12px;
   overflow: auto;
   background: #fff;
+  height: 100%;
+  padding: 40px;
+  box-sizing: border-box;
 }
+
 .panel h2 {
   margin: 0 0 8px;
   font-size: 14px;
@@ -25,12 +34,19 @@
   gap: 8px;
   margin-bottom: 8px;
 }
+p {
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: #374151;
+}
 button {
   padding: 6px 10px;
   border-radius: 8px;
   border: 1px solid #d1d5db;
   background: #f9fafb;
   cursor: pointer;
+  color: #111317;
+  margin: 4px;
 }
 button:hover {
   background: #f3f4f6;
@@ -53,7 +69,8 @@ select {
 .phone-wrap {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
+  height: 100%;
 }
 .phone {
   width: 360px;
@@ -93,4 +110,99 @@ select {
   background: #eef2ff;
   color: #3730a3;
   font-size: 12px;
+}
+
+p {
+  margin: 0;
+}
+
+.page-a {
+  background: #f7f0f9;
+  height: 100%;
+}
+.page-b {
+  background: #f4fae8;
+  height: 100%;
+}
+.page-basic-bottomsheet {
+  background: #e8faf8;
+  height: 100%;
+}
+.page-bottomsheet-inner-activity {
+  background: #faf2e8;
+  height: 100%;
+}
+
+/* sheet.css */
+:root {
+  --bf-z: 1000;
+  --bf-bg: #fff;
+  --bf-backdrop: rgba(0, 0, 0, 0.42);
+  --bf-radius: 16px;
+  --bf-shadow1: 0 -8px 24px rgba(0, 0, 0, 0.18);
+  --bf-shadow2: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+.bf-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: var(--bf-z);
+  pointer-events: auto;
+}
+.bf-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--bf-backdrop);
+  opacity: 0;
+  transition: opacity 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.bf-sheet[data-state="open"] .bf-backdrop {
+  opacity: 1;
+}
+.bf-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bf-bg);
+  border-top-left-radius: var(--bf-radius);
+  border-top-right-radius: var(--bf-radius);
+  box-shadow: var(--bf-shadow1), var(--bf-shadow2);
+  max-height: 85vh;
+  height: 65vh;
+  transform: translateY(100%); /* JS에서 실제 높이로 다시 설정 후 0으로 */
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  contain: layout paint style;
+}
+.bf-grabber {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: #d1d1d6;
+  margin: 8px 0;
+}
+.bf-content {
+  overflow: auto;
+  padding: 12px 16px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.bf-safe-pad {
+  height: max(12px, env(safe-area-inset-bottom));
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bf-bg: #1c1c1e;
+    --bf-backdrop: rgba(0, 0, 0, 0.5);
+  }
+  .bf-grabber {
+    background: #3a3a3c;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bf-backdrop,
+  .bf-panel {
+    transition: none !important;
+  }
 }
