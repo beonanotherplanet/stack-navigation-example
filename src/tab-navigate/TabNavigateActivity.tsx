@@ -9,7 +9,6 @@ import { OthersStack } from "./others/stack";
 
 const TabNavigationActivity: React.FC = () => {
   const [tab, setTab] = useState<TabKey>("home");
-  const contentStyle = useMemo(() => ({ height: "calc(100dvh - 56px)" }), []);
 
   return (
     <AppScreenLayout>

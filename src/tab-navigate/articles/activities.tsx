@@ -2,8 +2,6 @@
 import React from "react";
 import { Pad } from "../createTabStackFlow";
 import { useArticlesFlow } from "./stack";
-import { AppScreen } from "@stackflow/plugin-basic-ui";
-import AppScreenLayout from "../../AppScreenLayout";
 import { titleTabRoot } from "../../styles/style.css";
 
 export const ArticlesScreen: React.FC = () => {

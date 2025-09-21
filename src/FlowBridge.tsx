@@ -1,15 +1,8 @@
 import { useEffect } from "react";
-import { activities, Stack, useFlow, useStepFlow } from "./stackflow";
+import { useFlow } from "./stackflow";
 import { useStore } from "./store";
-import { useStack } from "@stackflow/react";
 
-type ActivityNameType = keyof typeof activities;
-
-const FlowBridge = ({
-  stepActivityName,
-}: {
-  stepActivityName?: ActivityNameType;
-}) => {
+const FlowBridge = () => {
   const useFlowObj = useFlow();
   //   const useStepFlowObj = (activityName: ActivityNameType) => useStepFlow(activityName);
 

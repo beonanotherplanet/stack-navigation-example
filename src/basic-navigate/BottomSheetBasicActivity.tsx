@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import AppScreenLayout from "../AppScreenLayout";
 import { useStepFlow } from "../stackflow";
 import { useSheetEnter, makeDimmedCloser } from "../interactions/slideUpDown";

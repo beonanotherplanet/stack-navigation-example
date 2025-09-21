@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export const useStore = create((set) => ({
+export const useStore = create<any>((set) => ({
   stack: {},
   flow: {},
   stepFlow: {},

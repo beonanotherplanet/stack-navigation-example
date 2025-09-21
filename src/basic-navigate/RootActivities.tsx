@@ -1,13 +1,13 @@
 import React from "react";
 import AppScreenLayout from "../AppScreenLayout";
-import { stack, useFlow } from "../stackflow";
+import { useFlow } from "../stackflow";
 import { screenTitle } from "../styles/style.css";
 import { flexColumn } from "../styles/flex.css";
-import { useActivity, useStack } from "@stackflow/react";
+import { useStack } from "@stackflow/react";
 
 type P = Record<string, unknown>;
 
-export const HomeScreen: React.FC<{ params?: P }> = ({ params }) => {
+export const HomeScreen: React.FC<{ params?: P }> = () => {
   const { push } = useFlow();
   return (
     <AppScreenLayout appBar={{ title: "Home" }}>
@@ -30,7 +30,7 @@ export const HomeScreen: React.FC<{ params?: P }> = ({ params }) => {
   );
 };
 
-export const PageAScreen: React.FC<{ params?: P }> = ({ params }) => {
+export const PageAScreen: React.FC<{ params?: P }> = () => {
   const { push, pop, replace } = useFlow();
   const stack = useStack();
   console.log(stack);
@@ -61,7 +61,7 @@ export const PageAScreen: React.FC<{ params?: P }> = ({ params }) => {
   );
 };
 
-export const PageBScreen: React.FC<{ params?: P }> = ({ params }) => {
+export const PageBScreen: React.FC<{ params?: P }> = () => {
   const { push, pop, replace } = useFlow();
   return (
     <AppScreenLayout appBar={{ title: "PageB" }}>
