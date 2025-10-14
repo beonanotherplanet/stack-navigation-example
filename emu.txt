@@ -1,4 +1,28 @@
 
+# ---------------------------------------------------------
+# (6.5) 스킨 폴더를 SDK 경로로 복사
+# ---------------------------------------------------------
+echo "[INFO] SDK 경로로 스킨 폴더 복사 중..."
+
+SRC_SKINS_DIR="$SCRIPT_DIR/skins"
+DEST_SKINS_DIR="$SDK_ROOT/skins"
+
+# SDK 내부 skins 폴더가 없으면 생성
+mkdir -p "$DEST_SKINS_DIR"
+
+# 사용자 스킨 폴더 전체를 복사 (기존 파일 덮어쓰기)
+if [ -d "$SRC_SKINS_DIR" ]; then
+  echo "[INFO] $SRC_SKINS_DIR → $DEST_SKINS_DIR 복사"
+  cp -r "$SRC_SKINS_DIR"/* "$DEST_SKINS_DIR"/
+  echo "[OK] 스킨 복사 완료."
+else
+  echo "[WARN] $SRC_SKINS_DIR 폴더를 찾을 수 없습니다. 스킨 복사는 생략됩니다."
+fi
+
+# 이제 config.ini에서 절대경로 대신 이름만 써도 인식됨
+
+
+
 takeown /f "$env:USERPROFILE\.android" /r /d y
 icacls "$env:USERPROFILE\.android" /grant "${env:USERNAME}:(OI)(CI)F" /t
 
