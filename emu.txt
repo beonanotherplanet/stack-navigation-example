@@ -1,3 +1,10 @@
+
+takeown /f "$env:USERPROFILE\.android" /r /d y
+icacls "$env:USERPROFILE\.android" /grant "${env:USERNAME}:(OI)(CI)F" /t
+
+
+
+
 # --- Fix Samsung skin path automatically ---
 AVD_PATH="$HOME/.android/avd/${AVD_NAME}.avd"
 SKIN_ABS_PATH="$(cd "$SKIN_DIR"; pwd)"
