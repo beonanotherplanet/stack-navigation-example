@@ -1,3 +1,20 @@
+# --- Fix Samsung skin path automatically ---
+AVD_PATH="$HOME/.android/avd/${AVD_NAME}.avd"
+SKIN_ABS_PATH="$(cd "$SKIN_DIR"; pwd)"
+echo "[INFO] 스킨 경로 보정 중: $SKIN_ABS_PATH"
+
+# 기존 skin.name, skin.path 제거 후 다시 기록
+grep -v '^skin\.' "$AVD_PATH/config.ini" > "$AVD_PATH/config.tmp" || true
+mv "$AVD_PATH/config.tmp" "$AVD_PATH/config.ini"
+
+cat >> "$AVD_PATH/config.ini" <<EOF
+skin.name=$(basename "$SKIN_ABS_PATH")
+skin.path=$SKIN_ABS_PATH
+EOF
+
+
+
+
 #!/usr/bin/env bash
 set -e
 
