@@ -1,3 +1,30 @@
+# --- SDK 환경 보정 ---
+$env:ANDROID_HOME = "$env:USERPROFILE\android-sdk"
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+[System.Environment]::SetEnvironmentVariable("ANDROID_HOME", $env:ANDROID_HOME, "User")
+[System.Environment]::SetEnvironmentVariable("ANDROID_SDK_ROOT", $env:ANDROID_HOME, "User")
+
+# repositories.cfg 생성
+$repoFile = "$env:USERPROFILE\.android\repositories.cfg"
+if (-not (Test-Path $repoFile)) {
+    New-Item -ItemType File -Path $repoFile | Out-Null
+}
+
+# sdkmanager 경로 교정
+$cmdlineTools = "$env:ANDROID_HOME\cmdline-tools"
+if (Test-Path "$cmdlineTools\cmdline-tools") {
+    Move-Item "$cmdlineTools\cmdline-tools" "$cmdlineTools\latest" -Force
+}
+
+# 패키지 설치
+Write-Host "[INFO] SDK 구성요소 설치 중..."
+& sdkmanager.bat --licenses | Out-Null
+& sdkmanager.bat "platform-tools" "emulator" | Out-Null
+
+
+
+
+
 # --- Ensure Java is available for avdmanager ---
 $possibleJdk = Get-ChildItem "C:\Program Files" -Directory | Where-Object { $_.Name -like "Microsoft*JDK*" -or $_.Name -like "OpenJDK*" } | Select-Object -First 1
 if ($possibleJdk) {
