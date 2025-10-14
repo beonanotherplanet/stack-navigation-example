@@ -1,3 +1,19 @@
+# --- Ensure Java is available for avdmanager ---
+$possibleJdk = Get-ChildItem "C:\Program Files" -Directory | Where-Object { $_.Name -like "Microsoft*JDK*" -or $_.Name -like "OpenJDK*" } | Select-Object -First 1
+if ($possibleJdk) {
+    $jdkPath = $possibleJdk.FullName
+    Write-Host "[INFO] JAVA_HOME 설정: $jdkPath"
+    [System.Environment]::SetEnvironmentVariable("JAVA_HOME", $jdkPath, "Process")
+    $env:JAVA_HOME = $jdkPath
+    $env:Path += ";$jdkPath\bin"
+} else {
+    Write-Host "[WARN] JDK 설치 경로를 자동으로 찾지 못했습니다. 수동 설정 필요."
+}
+
+
+
+
+
 # ==============================
 #  Android Emulator Full Setup
 #  for Windows (no Android Studio)
