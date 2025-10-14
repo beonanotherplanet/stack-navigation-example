@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+
+set -e
+
+# ============================
+# 기본 설정
+# ============================
+SDK_ROOT="$HOME/android-sdk"
+CMDLINE_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+AVD_NAME="custom_avd"
+
+echo "====================================="
+echo "  Android Emulator Setup Wizard"
+echo "====================================="
+
+# ============================
+# (1) JDK 설치 여부 확인
+# ============================
+if ! command -v java >/dev/null 2>&1; then
+  echo "[INFO] JDK가 설치되어 있지 않습니다."
+  read -p "OpenJDK 17을 설치할까요? (y/n): " install_jdk
+  if [[ "$install_jdk" == "y" ]]; then
+    sudo apt update -y
+    sudo apt install -y openjdk-17-jdk
+  else
+    echo "JDK 설치 없이 진행할 수 없습니다. 종료합니다."
+    exit 1
+  fi
+else
+  echo "[OK] JDK가 이미 설치되어 있습니다."
+fi
+
+# ============================
+# (2) SDK / 명령줄 도구 설치
+# ============================
+if [ ! -d "$SDK_ROOT" ]; then
+  echo "[INFO] Android SDK를 설치합니다..."
+  mkdir -p "$SDK_ROOT/cmdline-tools"
+  cd "$SDK_ROOT"
+  curl -o cmdline-tools.zip $CMDLINE_URL
+  unzip cmdline-tools.zip -d cmdline-tools
+  mv cmdline-tools/cmdline-tools cmdline-tools/latest
+  rm cmdline-tools.zip
+fi
+
+export ANDROID_HOME="$SDK_ROOT"
+export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+
+# ============================
+# SDK 패키지 설치
+# ============================
+echo "[INFO] SDK 구성요소를 업데이트 중..."
+yes | sdkmanager --licenses >/dev/null || true
+yes | sdkmanager "platform-tools" "emulator" >/dev/null
+
+# ============================
+# (3) 하드웨어 기기 선택
+# ============================
+echo
+echo "어떤 하드웨어를 AVD로 생성할까요?"
+echo "1) Samsung Galaxy Note20"
+echo "2) Samsung Galaxy S22"
+echo "3) Samsung Galaxy S24 Ultra"
+read -p "번호를 입력하세요 (1~3): " hw_choice
+
+case $hw_choice in
+  1) HW_NAME="Galaxy_Note20"; SKIN_URL="https://developer.samsung.com/android/tools/emulator-skins/Note20.zip" ;;
+  2) HW_NAME="Galaxy_S22"; SKIN_URL="https://developer.samsung.com/android/tools/emulator-skins/S22.zip" ;;
+  3) HW_NAME="Galaxy_S24Ultra"; SKIN_URL="https://developer.samsung.com/android/tools/emulator-skins/S24Ultra.zip" ;;
+  *) echo "잘못된 선택입니다."; exit 1 ;;
+esac
+
+SKIN_DIR="$ANDROID_HOME/skins/$HW_NAME"
+mkdir -p "$SKIN_DIR"
+echo "[INFO] 삼성 스킨 다운로드 중..."
+curl -L -o "$SDK_ROOT/${HW_NAME}.zip" "$SKIN_URL"
+unzip -o "$SDK_ROOT/${HW_NAME}.zip" -d "$SKIN_DIR"
+rm "$SDK_ROOT/${HW_NAME}.zip"
+
+# ============================
+# (4) 시스템 이미지 선택
+# ============================
+echo
+echo "어떤 안드로이드 시스템 이미지를 사용할까요?"
+echo "1) Android 13 (Google APIs)"
+echo "2) Android 14 (Google Play)"
+read -p "번호를 입력하세요 (1~2): " sys_choice
+
+case $sys_choice in
+  1) SYS_IMG="system-images;android-33;google_apis;x86_64" ;;
+  2) SYS_IMG="system-images;android-34;google_apis_playstore;x86_64" ;;
+  *) echo "잘못된 선택입니다."; exit 1 ;;
+esac
+
+echo "[INFO] 시스템 이미지 다운로드 중..."
+yes | sdkmanager "$SYS_IMG"
+
+# ============================
+# (5) 하드웨어 프로필 설정
+# ============================
+read -p "RAM 크기(MB): " RAM_SIZE
+read -p "스토리지 크기(MB): " STORAGE_SIZE
+
+# ============================
+# (6) AVD 생성
+# ============================
+echo "[INFO] AVD를 생성 중..."
+echo no | avdmanager create avd \
+  -n "$AVD_NAME" \
+  -k "$SYS_IMG" \
+  -d pixel_6 \
+  --sdcard "${STORAGE_SIZE}M" \
+  --force
+
+# config.ini 수정
+AVD_PATH="$HOME/.android/avd/${AVD_NAME}.avd"
+cat >> "$AVD_PATH/config.ini" <<EOF
+hw.ramSize=$RAM_SIZE
+skin.name=$HW_NAME
+skin.path=$SKIN_DIR
+EOF
+
+# ============================
+# (7) 에뮬레이터 실행
+# ============================
+echo "[INFO] 에뮬레이터를 실행합니다..."
+emulator -avd "$AVD_NAME" -netdelay none -netspeed full &
