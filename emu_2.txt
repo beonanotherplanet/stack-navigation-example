@@ -1,0 +1,136 @@
+# ==============================
+#  Android Emulator Full Setup
+#  for Windows (no Android Studio)
+# ==============================
+# 실행: PowerShell을 "관리자 권한"으로 열고
+#       ./setup_emulator.ps1
+
+$ErrorActionPreference = "Stop"
+
+$SDK_ROOT = "$env:USERPROFILE\android-sdk"
+$CMDLINE_URL = "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip"
+$AVD_NAME = "custom_avd"
+
+Write-Host "====================================="
+Write-Host "   Android Emulator Auto Setup"
+Write-Host "====================================="
+
+# ---------------------------------------------------------
+# (1) JDK 설치 확인
+# ---------------------------------------------------------
+if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
+    Write-Host "[INFO] JDK가 설치되어 있지 않습니다."
+    $install = Read-Host "OpenJDK 17을 설치할까요? (y/n)"
+    if ($install -eq "y") {
+        Write-Host "[INFO] OpenJDK 17 설치 중..."
+        winget install -e --id Microsoft.OpenJDK.17
+    } else {
+        Write-Host "JDK 없이는 진행할 수 없습니다. 종료합니다."
+        exit
+    }
+} else {
+    Write-Host "[OK] JDK가 이미 설치되어 있습니다."
+}
+
+# ---------------------------------------------------------
+# (2) Android SDK Commandline Tools 설치
+# ---------------------------------------------------------
+if (-not (Test-Path "$SDK_ROOT")) {
+    Write-Host "[INFO] Android SDK Commandline Tools 다운로드 중..."
+    New-Item -ItemType Directory -Force -Path "$SDK_ROOT\cmdline-tools" | Out-Null
+    Invoke-WebRequest -Uri $CMDLINE_URL -OutFile "$SDK_ROOT\cmdline-tools.zip"
+    Expand-Archive "$SDK_ROOT\cmdline-tools.zip" -DestinationPath "$SDK_ROOT\cmdline-tools"
+    Move-Item "$SDK_ROOT\cmdline-tools\cmdline-tools" "$SDK_ROOT\cmdline-tools\latest" -Force
+    Remove-Item "$SDK_ROOT\cmdline-tools.zip"
+}
+
+# 환경 변수 등록
+$env:ANDROID_HOME = $SDK_ROOT
+$env:PATH += ";$SDK_ROOT\emulator;$SDK_ROOT\platform-tools;$SDK_ROOT\cmdline-tools\latest\bin"
+
+# ---------------------------------------------------------
+# (3) SDK 패키지 설치
+# ---------------------------------------------------------
+Write-Host "[INFO] SDK 구성요소 설치 중..."
+& sdkmanager.bat --licenses | Out-Null
+& sdkmanager.bat "platform-tools" "emulator" | Out-Null
+
+# ---------------------------------------------------------
+# (4) Android 시스템 이미지 선택
+# ---------------------------------------------------------
+Write-Host ""
+Write-Host "어떤 안드로이드 시스템 이미지를 사용할까요?"
+Write-Host "1) Android 13 (Google APIs)"
+Write-Host "2) Android 14 (Google Play)"
+$sysChoice = Read-Host "번호를 입력하세요 (1~2)"
+switch ($sysChoice) {
+    1 { $SYS_IMG = "system-images;android-33;google_apis;x86_64" }
+    2 { $SYS_IMG = "system-images;android-34;google_apis_playstore;x86_64" }
+    default { Write-Host "잘못된 선택입니다."; exit }
+}
+Write-Host "[INFO] 시스템 이미지 다운로드 중..."
+& sdkmanager.bat "$SYS_IMG"
+
+# ---------------------------------------------------------
+# (5) 하드웨어 기기 선택
+# ---------------------------------------------------------
+Write-Host ""
+Write-Host "어떤 하드웨어를 AVD로 생성할까요?"
+Write-Host "1) Samsung Galaxy Note20"
+Write-Host "2) Samsung Galaxy S22"
+Write-Host "3) Samsung Galaxy S24 Ultra"
+$hwChoice = Read-Host "번호를 입력하세요 (1~3)"
+switch ($hwChoice) {
+    1 { $HW_NAME = "Galaxy_Note20" }
+    2 { $HW_NAME = "Galaxy_S22" }
+    3 { $HW_NAME = "Galaxy_S24Ultra" }
+    default { Write-Host "잘못된 선택입니다."; exit }
+}
+
+# ---------------------------------------------------------
+# (6) 스킨 경로 입력
+# ---------------------------------------------------------
+Write-Host ""
+Write-Host "[INFO] 삼성 기기 스킨 폴더 또는 ZIP 경로를 입력하세요."
+Write-Host "예: C:\Users\User\skins\Galaxy_S22  (또는 .zip 파일)"
+$skinInput = Read-Host "스킨 경로 입력"
+
+if ($skinInput.EndsWith(".zip")) {
+    $SKIN_DIR = "$SDK_ROOT\skins\$HW_NAME"
+    New-Item -ItemType Directory -Force -Path $SKIN_DIR | Out-Null
+    Write-Host "[INFO] ZIP 스킨 압축 해제 중..."
+    Expand-Archive -Path $skinInput -DestinationPath $SKIN_DIR -Force
+} else {
+    $SKIN_DIR = $skinInput
+}
+
+if (-not (Test-Path $SKIN_DIR)) {
+    Write-Host "[ERROR] 스킨 경로가 존재하지 않습니다: $SKIN_DIR"
+    exit
+}
+
+# ---------------------------------------------------------
+# (7) RAM, 저장공간 설정
+# ---------------------------------------------------------
+$RAM_SIZE = Read-Host "RAM 크기(MB)"
+$STORAGE_SIZE = Read-Host "스토리지 크기(MB)"
+
+# ---------------------------------------------------------
+# (8) AVD 생성
+# ---------------------------------------------------------
+Write-Host "[INFO] AVD 생성 중..."
+# avdmanager 경로 보정
+$AVDMANAGER = (Get-Command avdmanager.bat).Source
+
+cmd /c "echo no | `"$AVDMANAGER`" create avd -n $AVD_NAME -k $SYS_IMG -d pixel_6 --sdcard ${STORAGE_SIZE}M --force"
+
+$AVD_PATH = "$env:USERPROFILE\.android\avd\$AVD_NAME.avd"
+Add-Content "$AVD_PATH\config.ini" "hw.ramSize=$RAM_SIZE"
+Add-Content "$AVD_PATH\config.ini" "skin.name=$HW_NAME"
+Add-Content "$AVD_PATH\config.ini" "skin.path=$SKIN_DIR"
+
+# ---------------------------------------------------------
+# (9) 에뮬레이터 실행
+# ---------------------------------------------------------
+Write-Host "[INFO] 에뮬레이터를 실행합니다..."
+Start-Process -FilePath "emulator.exe" -ArgumentList "-avd $AVD_NAME -netdelay none -netspeed full"
