@@ -2,6 +2,123 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# ====== 0. Admin privilege check ======
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host "⚠️  Please re-run PowerShell as Administrator."
+    exit 1
+}
+
+# ====== 1. Paths ======
+$BaseDir    = "$env:USERPROFILE\AndroidEnv"
+$SdkRoot    = "$BaseDir\sdk"
+$ToolsDir   = "$SdkRoot\cmdline-tools\latest"
+$JavaDir    = "$BaseDir\jdk-17"
+$ProfileDir = "$PSScriptRoot\profiles"
+$ProfileFile= Join-Path $ProfileDir "note20.ini"
+$AVD_DIR    = "$env:USERPROFILE\.android\avd"
+$AVD_NAME   = "Galaxy_Note20_256GB"
+$AVD_PATH   = "$AVD_DIR\$AVD_NAME.avd"
+$AVD_CONFIG = "$AVD_PATH\config.ini"
+
+New-Item -ItemType Directory -Force -Path $BaseDir | Out-Null
+
+# ====== 2. Install Microsoft OpenJDK 17 ======
+if (!(Test-Path "$JavaDir\bin\java.exe")) {
+    Write-Host "[INFO] Installing Microsoft OpenJDK 17..."
+    $jdkUrl  = "https://aka.ms/download-jdk/microsoft-jdk-17.0.11-windows-x64.zip"
+    $zipPath = "$env:TEMP\jdk.zip"
+    Invoke-WebRequest -Uri $jdkUrl -OutFile $zipPath -UseBasicParsing
+
+    Expand-Archive -Force $zipPath -DestinationPath $BaseDir
+    Remove-Item $zipPath -Force
+
+    # Detect versioned folder automatically and rename to jdk-17
+    $extracted = Get-ChildItem -Directory $BaseDir | Where-Object { $_.Name -like "jdk-17*" } | Select-Object -First 1
+    if ($extracted -and $extracted.Name -ne "jdk-17") {
+        Rename-Item -Path $extracted.FullName -NewName "jdk-17" -Force
+    }
+}
+
+if (!(Test-Path "$JavaDir\bin\java.exe")) {
+    Write-Host "❌ JDK installation failed. Verify path: $JavaDir"
+    exit 1
+}
+
+$env:JAVA_HOME = $JavaDir
+[Environment]::SetEnvironmentVariable("JAVA_HOME", $JavaDir, "Machine")
+$env:Path += ";$JavaDir\bin"
+
+# ====== 3. Install Android Command-line Tools ======
+if (!(Test-Path "$ToolsDir\bin\sdkmanager.bat")) {
+    Write-Host "[INFO] Installing Android Command-line Tools..."
+    $sdkUrl  = "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip"
+    $zipSdk  = "$env:TEMP\cmdtools.zip"
+    Invoke-WebRequest -Uri $sdkUrl -OutFile $zipSdk -UseBasicParsing
+
+    Expand-Archive -Force $zipSdk -DestinationPath "$SdkRoot\cmdline-tools"
+    Rename-Item -Path "$SdkRoot\cmdline-tools\cmdline-tools" -NewName "latest"
+    Remove-Item $zipSdk -Force
+}
+
+$env:ANDROID_SDK_ROOT = $SdkRoot
+[Environment]::SetEnvironmentVariable("ANDROID_SDK_ROOT", $SdkRoot, "Machine")
+$SdkBin      = "$ToolsDir\bin"
+$EmulatorExe = "$SdkRoot\emulator\emulator.exe"
+$AvdManager  = "$SdkBin\avdmanager.bat"
+
+# ====== 4. Install SDK components ======
+Write-Host "[INFO] Installing SDK components..."
+& "$SdkBin\sdkmanager.bat" --sdk_root="$SdkRoot" --install "platform-tools" "emulator" | Out-Null
+
+# ====== 5. Install system image ======
+$API = 30
+$IMG = "system-images;android-$API;google_apis_playstore;x86_64"
+Write-Host "[INFO] Installing system image: $IMG"
+& "$SdkBin\sdkmanager.bat" --sdk_root="$SdkRoot" --install "$IMG" | Out-Null
+
+# ====== 6. Create AVD ======
+if (!(Test-Path $AVD_PATH)) {
+    Write-Host "[INFO] Creating AVD: $AVD_NAME"
+    & $AvdManager create avd -n $AVD_NAME -k $IMG --device "pixel" --force | Out-Null
+    Start-Sleep -Seconds 5
+} else {
+    Write-Host "[INFO] Existing AVD found: $AVD_NAME"
+}
+
+# Verify that config.ini exists
+if (!(Test-Path $AVD_CONFIG)) {
+    Write-Host "❌ AVD creation failed or config.ini not found."
+    Write-Host "   Check: $AVD_PATH"
+    exit 1
+}
+
+# ====== 7. Apply hardware profile ======
+if (Test-Path $ProfileFile) {
+    Write-Host "[INFO] Applying hardware profile from $ProfileFile"
+    Get-Content $ProfileFile | Add-Content $AVD_CONFIG
+} else {
+    Write-Host "⚠️  Hardware profile not found. Proceeding with default configuration."
+}
+
+# ====== 8. Launch emulator ======
+if (!(Test-Path $EmulatorExe)) {
+    Write-Host "❌ emulator.exe not found. Verify SDK installation: $EmulatorExe"
+    exit 1
+}
+
+Write-Host "[INFO] Launching emulator..."
+Start-Process "$EmulatorExe" -ArgumentList "-avd", "$AVD_NAME", "-netdelay", "none", "-netspeed", "full", "-gpu", "host"
+Write-Host "[SUCCESS] Emulator launched successfully 🚀"
+
+
+
+
+
+
+#!/usr/bin/env pwsh
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
 # ====== 0. 관리자 권한 확인 ======
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "⚠️  관리자 권한으로 PowerShell을 다시 실행해주세요."
