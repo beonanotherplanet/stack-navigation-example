@@ -1,3 +1,90 @@
+
+#!/usr/bin/env pwsh
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+# ====== 0. 관리자 권한 확인 ======
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host "⚠️  관리자 권한으로 PowerShell을 다시 실행해주세요."
+    exit 1
+}
+
+# ====== 1. 경로 설정 ======
+$BaseDir = "$env:USERPROFILE\AndroidEnv"
+$SdkRoot = "$BaseDir\sdk"
+$ToolsDir = "$SdkRoot\cmdline-tools\latest"
+$JavaDir = "$BaseDir\jdk-17"
+$ProfileDir = "$PSScriptRoot\profiles"
+$ProfileFile = Join-Path $ProfileDir "note20.ini"
+
+# ====== 2. JDK 설치 (Microsoft OpenJDK 17) ======
+if (!(Test-Path "$JavaDir\bin\java.exe")) {
+    Write-Host "[INFO] JDK 설치 중..."
+    $jdkUrl = "https://aka.ms/download-jdk/microsoft-jdk-17.0.11-windows-x64.zip"
+    $zipPath = "$env:TEMP\jdk.zip"
+    Invoke-WebRequest -Uri $jdkUrl -OutFile $zipPath
+    Expand-Archive -Force $zipPath -DestinationPath $BaseDir
+    Rename-Item -Path "$BaseDir\jdk-17.0.11+9" -NewName "jdk-17" -ErrorAction SilentlyContinue
+    Remove-Item $zipPath -Force
+}
+$env:JAVA_HOME = $JavaDir
+$env:Path += ";$JavaDir\bin"
+
+# ====== 3. Android Commandline Tools 설치 ======
+if (!(Test-Path "$ToolsDir\bin\sdkmanager.bat")) {
+    Write-Host "[INFO] Android commandline-tools 설치 중..."
+    $sdkUrl = "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip"
+    $zipSdk = "$env:TEMP\cmdtools.zip"
+    Invoke-WebRequest -Uri $sdkUrl -OutFile $zipSdk
+    Expand-Archive -Force $zipSdk -DestinationPath "$SdkRoot\cmdline-tools"
+    Rename-Item -Path "$SdkRoot\cmdline-tools\cmdline-tools" -NewName "latest"
+    Remove-Item $zipSdk -Force
+}
+
+$env:ANDROID_SDK_ROOT = $SdkRoot
+$SdkBin = "$ToolsDir\bin"
+$EmulatorExe = "$SdkRoot\emulator\emulator.exe"
+
+# ====== 4. SDK 패키지 설치 ======
+Write-Host "[INFO] SDK 패키지 설치 중..."
+& "$SdkBin\sdkmanager.bat" --sdk_root="$SdkRoot" --install "platform-tools" "emulator"
+
+# ====== 5. System Image 설치 ======
+$API = 30
+$IMG = "system-images;android-$API;google_apis_playstore;x86_64"
+& "$SdkBin\sdkmanager.bat" --sdk_root="$SdkRoot" --install "$IMG"
+
+# ====== 6. AVD 생성 ======
+$AVD_NAME = "Galaxy_Note20_256GB"
+$AVD_DIR = "$env:USERPROFILE\.android\avd"
+$AVD_CONFIG = "$AVD_DIR\$AVD_NAME.avd\config.ini"
+$AvdManager = "$SdkBin\avdmanager.bat"
+
+if (!(Test-Path "$AVD_DIR\$AVD_NAME.avd")) {
+    Write-Host "[INFO] Creating AVD: $AVD_NAME"
+    & $AvdManager create avd -n $AVD_NAME -k $IMG --device "pixel" --force
+} else {
+    Write-Host "[INFO] Existing AVD detected: $AVD_NAME"
+}
+
+# ====== 7. 하드웨어 프로필 적용 ======
+if (Test-Path $ProfileFile) {
+    Write-Host "[INFO] Applying hardware profile from $ProfileFile"
+    Get-Content $ProfileFile | Add-Content $AVD_CONFIG
+} else {
+    Write-Host "⚠️  하드웨어 프로필($ProfileFile)을 찾을 수 없습니다. 기본 설정으로 진행합니다."
+}
+
+# ====== 8. Emulator 실행 ======
+Write-Host "[INFO] Launching emulator..."
+Start-Process "$EmulatorExe" -ArgumentList "-avd", "$AVD_NAME", "-netdelay", "none", "-netspeed", "full", "-gpu", "host"
+
+
+
+
+
+
+
 if ! command -v java >/dev/null 2>&1; then
   echo "[INFO] JDK가 설치되어 있지 않습니다."
   read -p "OpenJDK 17을 설치할까요? (y/n, 기본값 y): " install_jdk
