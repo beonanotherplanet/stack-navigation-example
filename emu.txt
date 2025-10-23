@@ -1,3 +1,122 @@
+#!/usr/bin/env pwsh
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+# ====== 0. 관리자 권한 확인 ======
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host "⚠️  관리자 권한으로 PowerShell을 다시 실행해주세요."
+    exit 1
+}
+
+# ====== 1. 경로 설정 ======
+$BaseDir    = "$env:USERPROFILE\AndroidEnv"
+$SdkRoot    = "$BaseDir\sdk"
+$ToolsDir   = "$SdkRoot\cmdline-tools\latest"
+$JavaDir    = "$BaseDir\jdk-17"
+$ProfileDir = "$PSScriptRoot\profiles"
+$ProfileFile= Join-Path $ProfileDir "note20.ini"
+$AVD_DIR    = "$env:USERPROFILE\.android\avd"
+$AVD_NAME   = "Galaxy_Note20_256GB"
+$AVD_PATH   = "$AVD_DIR\$AVD_NAME.avd"
+$AVD_CONFIG = "$AVD_PATH\config.ini"
+
+# 디렉토리 생성
+New-Item -ItemType Directory -Force -Path $BaseDir | Out-Null
+
+# ====== 2. JDK 설치 ======
+if (!(Test-Path "$JavaDir\bin\java.exe")) {
+    Write-Host "[INFO] Installing Microsoft OpenJDK 17..."
+    $jdkUrl = "https://aka.ms/download-jdk/microsoft-jdk-17.0.11-windows-x64.zip"
+    $zipPath = "$env:TEMP\jdk.zip"
+    Invoke-WebRequest -Uri $jdkUrl -OutFile $zipPath -UseBasicParsing
+
+    Expand-Archive -Force $zipPath -DestinationPath $BaseDir
+    Remove-Item $zipPath -Force
+
+    # 버전별 폴더 이름 자동 감지 후 jdk-17 로 통일
+    $extracted = Get-ChildItem -Directory $BaseDir | Where-Object { $_.Name -like "jdk-17*" } | Select-Object -First 1
+    if ($extracted -and $extracted.Name -ne "jdk-17") {
+        Rename-Item -Path $extracted.FullName -NewName "jdk-17" -Force
+    }
+}
+
+# JAVA_HOME 설정
+if (!(Test-Path "$JavaDir\bin\java.exe")) {
+    Write-Host "❌ JDK 설치 실패. 경로 확인 필요: $JavaDir"
+    exit 1
+}
+
+$env:JAVA_HOME = $JavaDir
+[Environment]::SetEnvironmentVariable("JAVA_HOME", $JavaDir, "Machine")
+$env:Path += ";$JavaDir\bin"
+
+# ====== 3. Android Commandline Tools 설치 ======
+if (!(Test-Path "$ToolsDir\bin\sdkmanager.bat")) {
+    Write-Host "[INFO] Installing Android Commandline Tools..."
+    $sdkUrl = "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip"
+    $zipSdk = "$env:TEMP\cmdtools.zip"
+    Invoke-WebRequest -Uri $sdkUrl -OutFile $zipSdk -UseBasicParsing
+
+    Expand-Archive -Force $zipSdk -DestinationPath "$SdkRoot\cmdline-tools"
+    Rename-Item -Path "$SdkRoot\cmdline-tools\cmdline-tools" -NewName "latest"
+    Remove-Item $zipSdk -Force
+}
+
+$env:ANDROID_SDK_ROOT = $SdkRoot
+[Environment]::SetEnvironmentVariable("ANDROID_SDK_ROOT", $SdkRoot, "Machine")
+$SdkBin     = "$ToolsDir\bin"
+$EmulatorExe= "$SdkRoot\emulator\emulator.exe"
+$AvdManager = "$SdkBin\avdmanager.bat"
+
+# ====== 4. SDK 패키지 설치 ======
+Write-Host "[INFO] Installing SDK components..."
+& "$SdkBin\sdkmanager.bat" --sdk_root="$SdkRoot" --install "platform-tools" "emulator" | Out-Null
+
+# ====== 5. System Image 설치 ======
+$API = 30
+$IMG = "system-images;android-$API;google_apis_playstore;x86_64"
+Write-Host "[INFO] Installing system image: $IMG"
+& "$SdkBin\sdkmanager.bat" --sdk_root="$SdkRoot" --install "$IMG" | Out-Null
+
+# ====== 6. AVD 생성 ======
+if (!(Test-Path $AVD_PATH)) {
+    Write-Host "[INFO] Creating AVD: $AVD_NAME"
+    & $AvdManager create avd -n $AVD_NAME -k $IMG --device "pixel" --force | Out-Null
+    Start-Sleep -Seconds 5
+} else {
+    Write-Host "[INFO] Existing AVD found: $AVD_NAME"
+}
+
+# AVD 생성 여부 확인
+if (!(Test-Path $AVD_CONFIG)) {
+    Write-Host "❌ AVD 생성 실패 또는 config.ini 경로를 찾을 수 없습니다."
+    Write-Host "   확인 경로: $AVD_PATH"
+    exit 1
+}
+
+# ====== 7. 하드웨어 프로필 적용 ======
+if (Test-Path $ProfileFile) {
+    Write-Host "[INFO] Applying hardware profile from $ProfileFile"
+    Get-Content $ProfileFile | Add-Content $AVD_CONFIG
+} else {
+    Write-Host "⚠️  하드웨어 프로필을 찾을 수 없습니다. 기본 설정으로 진행합니다."
+}
+
+# ====== 8. 에뮬레이터 실행 ======
+if (!(Test-Path $EmulatorExe)) {
+    Write-Host "❌ emulator.exe를 찾을 수 없습니다. SDK 설치를 확인하세요: $EmulatorExe"
+    exit 1
+}
+
+Write-Host "[INFO] Launching emulator..."
+Start-Process "$EmulatorExe" -ArgumentList "-avd", "$AVD_NAME", "-netdelay", "none", "-netspeed", "full", "-gpu", "host"
+Write-Host "[SUCCESS] Emulator launched successfully 🚀"
+
+
+
+
+
+
 
 #!/usr/bin/env pwsh
 Set-StrictMode -Version Latest
