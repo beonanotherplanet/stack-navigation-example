@@ -1,3 +1,70 @@
+#!/usr/bin/env pwsh
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+# ====== 1. 선택 UI ======
+Write-Host "=== Galaxy Emulator Launcher ==="
+Write-Host "1) Galaxy Note 10"
+Write-Host "2) Galaxy Note 20"
+Write-Host "3) Galaxy S22"
+$CHOICE = Read-Host "Select device [1-3]"
+
+switch ($CHOICE) {
+    1 {
+        $DEVICE = "note10"
+        $API = 29
+        $IMG = "system-images;android-$API;google_apis_playstore;x86_64"
+        $AVD_NAME = "Galaxy_Note10_256GB"
+    }
+    2 {
+        $DEVICE = "note20"
+        $API = 30
+        $IMG = "system-images;android-$API;google_apis_playstore;x86_64"
+        $AVD_NAME = "Galaxy_Note20_256GB"
+    }
+    3 {
+        $DEVICE = "s22"
+        $API = 32
+        $IMG = "system-images;android-$API;google_apis_playstore;x86_64"
+        $AVD_NAME = "Galaxy_S22_256GB"
+    }
+    Default {
+        Write-Host "❌ Invalid selection" -ForegroundColor Red
+        exit 1
+    }
+}
+
+# ====== 2. 프로필 파일 존재 확인 ======
+$PROFILE_PATH = ".\profiles\$DEVICE.ini"
+if (!(Test-Path $PROFILE_PATH)) {
+    Write-Host "❌ Profile file not found: $PROFILE_PATH" -ForegroundColor Red
+    exit 1
+}
+
+# ====== 3. SDK 이미지 설치 ======
+Write-Host "[INFO] Installing required system image..."
+& sdkmanager --install "$IMG"
+
+# ====== 4. AVD 생성 ======
+Write-Host "[INFO] Creating AVD: $AVD_NAME"
+& avdmanager create avd -n "$AVD_NAME" -k "$IMG" --device "pixel" --force
+
+# AVD 설정 파일 경로
+$AVD_PATH = "$env:USERPROFILE\.android\avd\$AVD_NAME.avd\config.ini"
+
+# ====== 5. 하드웨어 프로필 적용 ======
+Write-Host "[INFO] Applying hardware profile from $PROFILE_PATH"
+Get-Content $PROFILE_PATH | Add-Content $AVD_PATH
+
+# ====== 6. 에뮬레이터 실행 ======
+Write-Host "[INFO] Launching emulator..."
+Start-Process "emulator" -ArgumentList "-avd", "$AVD_NAME", "-netdelay", "none", "-netspeed", "full", "-gpu", "host"
+
+
+
+
+
+
 
 # ---------------------------------------------------------
 # (6.5) 스킨 폴더를 SDK 경로로 복사
