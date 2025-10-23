@@ -1,3 +1,35 @@
+if ! command -v java >/dev/null 2>&1; then
+  echo "[INFO] JDK가 설치되어 있지 않습니다."
+  read -p "OpenJDK 17을 설치할까요? (y/n, 기본값 y): " install_jdk
+  install_jdk=${install_jdk:-y}
+  if [[ "$install_jdk" == "y" ]]; then
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt update -y
+      sudo apt install -y openjdk-17-jdk
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y java-17-openjdk
+    elif command -v brew >/dev/null 2>&1; then
+      brew install openjdk@17
+    elif [[ "$OS" == "Windows_NT" ]]; then
+      echo "[INFO] Windows 환경 감지됨. Winget으로 설치합니다."
+      winget install --id Microsoft.OpenJDK.17 -e || {
+        echo "[ERROR] winget 설치 실패. https://learn.microsoft.com/en-us/java/openjdk/download 에서 수동 설치 필요."
+        exit 1
+      }
+    else
+      echo "[ERROR] 패키지 매니저를 찾을 수 없습니다. 수동으로 JDK를 설치하세요."
+      exit 1
+    fi
+  else
+    echo "[ERROR] JDK 없이 진행 불가"
+    exit 1
+  fi
+fi
+
+
+
+
+
 #!/usr/bin/env pwsh
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
