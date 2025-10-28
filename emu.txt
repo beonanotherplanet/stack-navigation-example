@@ -1,3 +1,102 @@
+### === (붙여넣기) APK 설치 및 실행 섹션 ===
+set -euo pipefail
+
+# (필요 시 커스터마이즈)
+APK_NAME="${APK_NAME:-app-debug.apk}"
+
+# 현재 스크립트 경로 기준 APK 찾기
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APK_PATH="$SCRIPT_DIR/$APK_NAME"
+if [[ ! -f "$APK_PATH" ]]; then
+  echo "[!] APK 파일을 찾을 수 없습니다: $APK_PATH" >&2
+  exit 1
+fi
+
+# 사용 가능한 adb 찾기 (PATH에 platform-tools가 있어야 함)
+if ! command -v adb >/dev/null 2>&1; then
+  echo "[!] adb를 찾을 수 없습니다. ANDROID_SDK_ROOT/platform-tools가 PATH에 있어야 합니다." >&2
+  exit 1
+fi
+
+# 이미 실행 중인 에뮬레이터 serial 선택
+# - 기존 스크립트에서 EMULATOR_SERIAL/ANDROID_SERIAL을 셋업했다면 그 값을 우선 사용
+SERIAL_CANDIDATE_1="${EMULATOR_SERIAL:-}"
+SERIAL_CANDIDATE_2="${ANDROID_SERIAL:-}"
+SERIAL_CANDIDATE_3="$(adb devices | awk '/^emulator-/{print $1; exit}' || true)"
+SERIAL="${SERIAL_CANDIDATE_1:-${SERIAL_CANDIDATE_2:-$SERIAL_CANDIDATE_3}}"
+
+if [[ -z "$SERIAL" ]]; then
+  echo "[!] 실행 중인 에뮬레이터를 찾지 못했습니다. 에뮬레이터를 먼저 실행/부팅해 주세요." >&2
+  exit 1
+fi
+
+echo "[*] 대상 디바이스: $SERIAL"
+adb -s "$SERIAL" wait-for-device
+
+# 부팅 완료 신호가 필요하면 주석 해제
+# for _ in {1..120}; do
+#   bc="$(adb -s "$SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+#   [[ "$bc" == "1" ]] && break
+#   sleep 2
+# done
+
+echo "[*] APK 설치 중: $APK_PATH"
+set +e
+adb -s "$SERIAL" install -r -t -d "$APK_PATH"
+INSTALL_RC=$?
+set -e
+
+if [[ $INSTALL_RC -ne 0 ]]; then
+  echo "[!] 설치 실패. 패키지 제거 후 재시도합니다..."
+  # 패키지명 추출(apkanalyzer 또는 aapt가 있으면 정확)
+  PKG=""
+  if command -v apkanalyzer >/dev/null 2>&1; then
+    PKG="$(apkanalyzer manifest application-id "$APK_PATH" 2>/dev/null || true)"
+  fi
+  if [[ -z "$PKG" ]] && command -v aapt >/dev/null 2>&1; then
+    PKG="$(aapt dump badging "$APK_PATH" 2>/dev/null | awk -F"'" '/package: name=/{print $2}' || true)"
+  fi
+  # 둘 다 없으면, 설치 실패했으니 제거 생략 (패키지명 모름)
+  if [[ -n "$PKG" ]]; then
+    adb -s "$SERIAL" uninstall "$PKG" >/dev/null 2>&1 || true
+  fi
+  adb -s "$SERIAL" install -r -t -d "$APK_PATH"
+fi
+
+# 실행: 런처 액티비티 있으면 직접 실행, 아니면 monkey로 런처 호출
+PKG=""
+LAUNCHABLE=""
+if command -v apkanalyzer >/dev/null 2>&1; then
+  PKG="$(apkanalyzer manifest application-id "$APK_PATH" 2>/dev/null || true)"
+fi
+if [[ -z "$PKG" ]] && command -v aapt >/dev/null 2>&1; then
+  PKG="$(aapt dump badging "$APK_PATH" 2>/dev/null | awk -F"'" '/package: name=/{print $2}' || true)"
+  LAUNCHABLE="$(aapt dump badging "$APK_PATH" 2>/dev/null | awk -F"'" '/launchable-activity: name=/{print $2}' || true)"
+fi
+
+echo "[*] 앱 실행 중..."
+if [[ -n "$PKG" && -n "$LAUNCHABLE" ]]; then
+  adb -s "$SERIAL" shell am start -n "$PKG/$LAUNCHABLE" >/dev/null
+elif [[ -n "$PKG" ]]; then
+  adb -s "$SERIAL" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null
+else
+  echo "[!] 패키지명을 알 수 없어 monkey 실행 불가. 앱 서랍에서 수동 실행하거나 'aapt' 또는 'apkanalyzer' 설치 후 재시도하세요." >&2
+  exit 1
+fi
+
+echo "[✔] 완료: $SERIAL 에서 $APK_NAME 실행"
+### === (끝) APK 설치 및 실행 섹션 ===
+
+
+
+
+
+
+
+
+
+
+
 #!/usr/bin/env bash
 set -e
 
