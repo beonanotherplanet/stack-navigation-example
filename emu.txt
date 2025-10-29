@@ -1,3 +1,48 @@
+# --- 패키지 매니저(서비스 'package') 준비 대기 유틸 ---
+wait_for_package_manager() {
+  local serial="$1"
+  echo "[*] 패키지 매니저 기동 대기 중..."
+
+  # 1) 부팅 애니메이션 종료 대기(가능한 경우)
+  for _ in {1..60}; do
+    state="$(adb -s "$serial" shell getprop init.svc.bootanim 2>/dev/null | tr -d '\r')"
+    [[ "$state" == "stopped" || "$state" == "" ]] && break
+    sleep 1
+  done
+
+  # 2) zygote가 떠 있는지 확인 (64/32 둘 다 체크)
+  for _ in {1..60}; do
+    if adb -s "$serial" shell 'pidof zygote || pidof zygote64' >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+
+  # 3) 패키지 매니저가 실제로 응답하는지 확인
+  #    - 가장 신뢰도 높은 체크: pm path android / pm list packages
+  for i in {1..90}; do
+    if adb -s "$serial" shell 'pm path android' >/dev/null 2>&1; then
+      echo "[*] 패키지 매니저 응답 확인 완료"
+      return 0
+    fi
+    # 보조 확인: binder 서비스 테이블에 'package'가 뜨는지
+    if adb -s "$serial" shell 'cmd -l | grep -q "^package$"' >/dev/null 2>&1; then
+      echo "[*] cmd 서비스 목록에 package 확인"
+      return 0
+    fi
+    sleep 2
+  done
+
+  echo "[!] 일정 시간 내 패키지 매니저 준비가 되지 않았습니다." >&2
+  return 1
+}
+
+
+
+
+
+
+
 ### === (붙여넣기) APK 설치 및 실행 섹션 ===
 set -euo pipefail
 
