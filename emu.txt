@@ -1,4 +1,30 @@
 #!/usr/bin/env bash
+set -e
+
+CHROME_PATH_MAC="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+SOCKET=$(adb shell "cat /proc/net/unix | grep webview_devtools_remote | tail -n 1" | awk '{print $8}' | tr -d '@')
+adb forward tcp:9222 localabstract:$SOCKET 2>/dev/null
+
+JSON=$(curl -s http://localhost:9222/json/list 2>/dev/null)
+PAGE=$(echo "$JSON" | grep -o 'ws://localhost:9222/devtools/page/[^"]*' | head -n 1)
+FRONTEND=$(curl -s http://localhost:9222/json/version 2>/dev/null | grep -o '"DevToolsFrontendUrl": *"[^"]*"' | cut -d'"' -f4)
+
+if [[ -z "$PAGE" || -z "$FRONTEND" ]]; then
+  echo "[error] Could not find DevTools target or frontend URL."
+  exit 1
+fi
+
+FRONTEND_URL="http://localhost:9222${FRONTEND}&ws=${PAGE#ws://}"
+
+echo "[success] Launching Chrome DevTools..."
+"$CHROME_PATH_MAC" --app="$FRONTEND_URL" &
+
+
+
+
+
+#!/usr/bin/env bash
 #
 # Auto-launch Chrome DevTools for Android WebView (emulator or device)
 # Requirements:
