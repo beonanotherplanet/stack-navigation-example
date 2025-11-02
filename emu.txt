@@ -1,4 +1,61 @@
 #!/usr/bin/env bash
+# Auto-launch Chrome DevTools for Android WebView (Windows version)
+# Requires:
+#   - adb in PATH
+#   - Google Chrome installed (default path)
+#   - WebView debugging enabled in app
+
+set -e
+
+CHROME_PATH_WIN="/c/Program Files/Google/Chrome/Application/chrome.exe"
+CHROME_PATH_ALT="/c/Program Files (x86)/Google/Chrome/Application/chrome.exe"
+
+echo "[info] Searching for active WebView debug socket..."
+SOCKET=$(adb shell "cat /proc/net/unix | grep webview_devtools_remote | tail -n 1" | awk '{print $8}' | tr -d '@')
+
+if [[ -z "$SOCKET" ]]; then
+  echo "[error] No active WebView devtools socket found."
+  echo "        Make sure WebView debugging is enabled and the app is open."
+  exit 1
+fi
+
+echo "[info] Found socket: $SOCKET"
+
+echo "[info] Forwarding port..."
+adb forward tcp:9222 localabstract:$SOCKET 2>/dev/null
+sleep 1
+
+# Fetch CDP info
+PAGE=$(curl -s http://localhost:9222/json/list 2>/dev/null | grep -o 'ws://localhost:9222/devtools/page/[^"]*' | head -n 1)
+FRONTEND=$(curl -s http://localhost:9222/json/version 2>/dev/null | grep -o '"DevToolsFrontendUrl": *"[^"]*"' | cut -d'"' -f4)
+
+if [[ -z "$PAGE" || -z "$FRONTEND" ]]; then
+  echo "[error] Could not find DevTools target or frontend URL."
+  exit 1
+fi
+
+FRONTEND_URL="http://localhost:9222${FRONTEND}&ws=${PAGE#ws://}"
+
+echo "[success] DevTools endpoint ready:"
+echo "  → $FRONTEND_URL"
+
+# Launch Chrome DevTools
+if [[ -x "$CHROME_PATH_WIN" ]]; then
+  "$CHROME_PATH_WIN" --app="$FRONTEND_URL" &
+elif [[ -x "$CHROME_PATH_ALT" ]]; then
+  "$CHROME_PATH_ALT" --app="$FRONTEND_URL" &
+else
+  echo "[warn] Chrome not found in default path."
+  echo "       Please open this URL manually:"
+  echo "       $FRONTEND_URL"
+fi
+
+echo "[done] DevTools launched successfully (WebView stays open)."
+
+
+
+
+#!/usr/bin/env bash
 set -e
 
 CHROME_PATH_MAC="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
