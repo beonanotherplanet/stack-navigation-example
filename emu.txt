@@ -1,3 +1,31 @@
+#!/usr/bin/env bash
+set -e
+
+# Find webview_devtools_remote socket dynamically
+SOCKET=$(adb shell "cat /proc/net/unix | grep webview_devtools_remote | tail -n 1" | awk '{print $8}' | tr -d '@')
+
+if [[ -z "$SOCKET" ]]; then
+  echo "[error] No active WebView devtools socket found."
+  exit 1
+fi
+
+echo "[info] Found WebView socket: $SOCKET"
+
+# Forward port
+adb forward tcp:9222 localabstract:$SOCKET 2>/dev/null
+echo "[success] Port 9222 forwarded to $SOCKET"
+
+# Fetch DevTools target list
+curl -s http://localhost:9222/json/list || {
+  echo "[error] Could not fetch DevTools list. Check if WebView debugging is enabled."
+  exit 1
+}
+
+
+
+
+
+
 # --- 패키지 매니저(서비스 'package') 준비 대기 유틸 ---
 wait_for_package_manager() {
   local serial="$1"
