@@ -1,4 +1,79 @@
 #!/usr/bin/env bash
+#
+# Auto-launch Chrome DevTools for Android WebView (emulator or device)
+# Requirements:
+#   - WebView debugging enabled in the app
+#   - adb & Google Chrome installed
+#
+
+set -e
+
+# Detect OS for Chrome path
+CHROME_PATH_MAC="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CHROME_PATH_LINUX="/usr/bin/google-chrome"
+CHROME_PATH_WIN="/c/Program Files/Google/Chrome/Application/chrome.exe"
+
+echo "[info] Searching for active WebView debug socket..."
+SOCKET=$(adb shell "cat /proc/net/unix | grep webview_devtools_remote | tail -n 1" | awk '{print $8}' | tr -d '@')
+
+if [[ -z "$SOCKET" ]]; then
+  echo "[error] No active WebView devtools socket found."
+  echo "        Make sure WebView debugging is enabled and app is open."
+  exit 1
+fi
+
+echo "[info] Found socket: $SOCKET"
+
+echo "[info] Forwarding port..."
+adb forward tcp:9222 localabstract:$SOCKET 2>/dev/null
+sleep 1
+
+echo "[info] Fetching DevTools targets..."
+JSON=$(curl -s http://localhost:9222/json/list 2>/dev/null)
+
+if [[ -z "$JSON" ]]; then
+  echo "[error] Could not fetch DevTools target list. Check if WebView debugging is active."
+  exit 1
+fi
+
+# Extract the first WebSocket Debugger URL
+WS_URL=$(echo "$JSON" | grep -o 'ws://localhost:9222/devtools/page/[^"]*' | head -n 1)
+
+if [[ -z "$WS_URL" ]]; then
+  echo "[error] No WebSocket debugger target found in JSON list."
+  echo "$JSON"
+  exit 1
+fi
+
+INSPECTOR_URL="http://localhost:9222/devtools/inspector.html?ws=${WS_URL#ws://}"
+
+echo "[success] DevTools endpoint ready:"
+echo "  → $INSPECTOR_URL"
+
+# Launch Chrome DevTools automatically
+if [[ -x "$CHROME_PATH_MAC" ]]; then
+  "$CHROME_PATH_MAC" --app="$INSPECTOR_URL" &
+elif [[ -x "$CHROME_PATH_LINUX" ]]; then
+  "$CHROME_PATH_LINUX" --app="$INSPECTOR_URL" &
+elif [[ -x "$CHROME_PATH_WIN" ]]; then
+  "$CHROME_PATH_WIN" --app="$INSPECTOR_URL" &
+else
+  echo "[warn] Chrome not found. Please open manually:"
+  echo "       $INSPECTOR_URL"
+fi
+
+echo "[done] DevTools launched successfully (WebView stays open)."
+
+
+
+
+
+
+
+
+
+
+#!/usr/bin/env bash
 set -e
 
 # Find webview_devtools_remote socket dynamically
